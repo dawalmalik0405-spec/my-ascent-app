@@ -16,7 +16,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen">
       <Sidebar />
       <ResearchLiveProvider>
-        <main className="flex-1 overflow-auto p-8">{children}</main>
+        <main className="flex-1 overflow-auto p-6 sm:p-8">
+          <div className="mx-auto max-w-6xl">{children}</div>
+        </main>
       </ResearchLiveProvider>
     </div>
   );

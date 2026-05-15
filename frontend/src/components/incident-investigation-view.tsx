@@ -1,15 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { IncidentAgentPipeline } from "@/components/incident-agent-pipeline";
 import { ApprovalButton } from "@/components/approval-button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import {
   fetchIncident,
   fetchIncidentTrace,
   type Incident,
   type IncidentTrace,
 } from "@/lib/api";
+import { useStreamingText } from "@/hooks/use-streaming-text";
+import { cn } from "@/lib/utils";
 
 const TERMINAL = new Set(["resolved", "cancelled", "failed"]);
 
@@ -72,6 +75,33 @@ function statusNarrative(status: string): string {
   return map[status] ?? `Status: ${status}`;
 }
 
+function StreamingInsight({
+  text,
+  streamingKey,
+  className,
+}: {
+  text: string | null | undefined;
+  streamingKey: string;
+  className?: string;
+}) {
+  const full = text ?? "";
+  const displayed = useStreamingText(full, streamingKey);
+  const incomplete = displayed.length < full.length;
+  return (
+    <div className={cn("relative", className)}>
+      <p className="whitespace-pre-wrap text-sm leading-relaxed">
+        {displayed}
+        {incomplete && (
+          <span
+            className="ml-0.5 inline-block h-3.5 w-1 translate-y-0.5 animate-pulse rounded-sm bg-primary align-middle"
+            aria-hidden
+          />
+        )}
+      </p>
+    </div>
+  );
+}
+
 function formatCommits(data: unknown): string[] {
   if (!data) return [];
   if (Array.isArray(data)) {
@@ -130,7 +160,7 @@ export function IncidentInvestigationView({
 
   useEffect(() => {
     if (!isActive(trace.status)) return;
-    const id = window.setInterval(refresh, 5000);
+    const id = window.setInterval(refresh, 2500);
     return () => window.clearInterval(id);
   }, [trace.status, refresh]);
 
@@ -148,38 +178,50 @@ export function IncidentInvestigationView({
       : "";
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Incident Investigation</h1>
-          <p className="mt-1 text-lg">{incident.title}</p>
-          <p className="text-sm text-muted-foreground">
-            {incident.service ?? "unknown"} · {incident.severity} ·{" "}
-            <span className="font-mono text-xs">{incident.correlation_id}</span>
-          </p>
-          <p className="font-mono text-xs text-muted-foreground">{incident.id}</p>
+    <div className="space-y-8 pb-12">
+      <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-card via-card to-primary/[0.07] p-6 shadow-[0_20px_60px_-30px_hsl(217_91%_60%_/_0.35)]">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary/90">
+              Incident investigation
+            </p>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">{incident.title}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {incident.service ?? "unknown"} · <span className="text-foreground">{incident.severity}</span> ·{" "}
+              <span className="font-mono text-xs text-primary/90">{incident.correlation_id}</span>
+            </p>
+            <p className="mt-1 font-mono text-[11px] text-muted-foreground/80">{incident.id}</p>
+          </div>
+          <div className="flex flex-col items-start gap-3 sm:items-end">
+            <Badge variant={trace.status === "resolved" ? "resolved" : incident.severity} className="text-sm">
+              {trace.status}
+            </Badge>
+            {isActive(trace.status) && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full bg-primary",
+                    refreshing ? "animate-ping" : "animate-pulse"
+                  )}
+                />
+                {refreshing ? "Syncing trace…" : "Live · polling every 2.5s"}
+              </div>
+            )}
+            {lastUpdated && (
+              <p className="text-xs text-muted-foreground">Last sync {lastUpdated.toLocaleTimeString()}</p>
+            )}
+            {trace.status === "awaiting_approval" && (
+              <ApprovalButton incidentId={incidentId} onApproved={refresh} />
+            )}
+          </div>
         </div>
-        <div className="flex flex-col items-end gap-2">
-          <Badge variant={trace.status === "resolved" ? "resolved" : incident.severity}>
-            {trace.status}
-          </Badge>
-          {isActive(trace.status) && (
-            <p className="text-xs text-muted-foreground">
-              {refreshing ? "Updating…" : "Auto-refresh every 5s"}
-            </p>
-          )}
-          {lastUpdated && (
-            <p className="text-xs text-muted-foreground">
-              Updated {lastUpdated.toLocaleTimeString()}
-            </p>
-          )}
-          {trace.status === "awaiting_approval" && (
-            <ApprovalButton incidentId={incidentId} onApproved={refresh} />
-          )}
+        <div className="relative mt-8">
+          <IncidentAgentPipeline trace={trace} />
         </div>
       </div>
 
-      <Card className="border-primary/30 bg-primary/5">
+      <Card className="border-primary/25 bg-primary/[0.04] transition-shadow duration-300 hover:shadow-lg hover:shadow-primary/5">
         <h2 className="mb-2 text-lg font-semibold">How incident intelligence works</h2>
         <p className="text-sm leading-relaxed text-muted-foreground">
           This module does <strong className="text-foreground">not</strong> scan your repo continuously.
@@ -201,9 +243,11 @@ export function IncidentInvestigationView({
         </Card>
       )}
 
-      <Card>
+      <Card className="transition-colors duration-300 hover:border-border">
         <h2 className="mb-2 text-lg font-semibold">What happened</h2>
-        <p className="text-sm leading-relaxed">{statusNarrative(trace.status)}</p>
+        <p className="text-sm leading-relaxed transition-all duration-500">
+          {statusNarrative(trace.status)}
+        </p>
         {failedTools.length > 0 && (
           <div className="mt-3 rounded border border-destructive/40 bg-destructive/10 p-3">
             <p className="text-sm font-medium text-destructive">
@@ -339,13 +383,13 @@ export function IncidentInvestigationView({
       {incident.root_cause && (
         <Card>
           <h2 className="mb-2 text-lg font-semibold">Root cause (conclusion)</h2>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">{incident.root_cause}</p>
+          <StreamingInsight text={incident.root_cause} streamingKey={`${incidentId}-rc`} />
         </Card>
       )}
       {incident.incident_report && (
         <Card>
           <h2 className="mb-2 text-lg font-semibold">Incident report</h2>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">{incident.incident_report}</p>
+          <StreamingInsight text={incident.incident_report} streamingKey={`${incidentId}-report`} />
         </Card>
       )}
       {incident.remediation_summary && (
@@ -367,11 +411,17 @@ export function IncidentInvestigationView({
                 typeof event.payload?.summary === "string" ? event.payload.summary : null;
               const isLatest = i === trace.timeline.length - 1;
               return (
-                <div key={`${event.type}-${event.timestamp}-${i}`} className="flex gap-4 pb-6">
+                <div
+                  key={`${event.type}-${event.timestamp}-${i}`}
+                  className="flex gap-4 pb-6 timeline-row-enter"
+                  style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}
+                >
                   <div className="flex flex-col items-center">
                     <div
-                      className={`h-3 w-3 rounded-full ${
-                        isLatest && isActive(trace.status) ? "animate-pulse bg-primary" : "bg-primary"
+                      className={`h-3 w-3 rounded-full transition-all duration-300 ${
+                        isLatest && isActive(trace.status)
+                          ? "scale-110 animate-pulse bg-primary shadow-[0_0_12px_hsl(217_91%_60%_/_0.6)]"
+                          : "bg-primary"
                       }`}
                     />
                     {i < trace.timeline.length - 1 && <div className="w-px flex-1 bg-border" />}
@@ -408,7 +458,7 @@ export function IncidentInvestigationView({
       {investigationRootCause && !incident.root_cause && (
         <Card>
           <h2 className="mb-2 text-lg font-semibold">Investigation output</h2>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">{investigationRootCause}</p>
+          <StreamingInsight text={investigationRootCause} streamingKey={`${incidentId}-inv-rc`} />
         </Card>
       )}
     </div>
