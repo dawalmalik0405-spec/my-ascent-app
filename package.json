@@ -1,0 +1,16 @@
+{
+  "name": "ascent-platform",
+  "private": true,
+  "scripts": {
+    "infra:up": "docker compose up -d postgres redis qdrant temporal temporal-ui",
+    "infra:down": "docker compose down",
+    "start": "node scripts/wait.js && concurrently -k -n API,WORKER,WEB -c blue,yellow,green \"npm run api\" \"npm run worker\" \"npm run web\"",
+    "api": "cross-env PYTHONPATH=backend .venv\\Scripts\\python.exe -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8000",
+    "worker": "cross-env PYTHONPATH=backend .venv\\Scripts\\python.exe -m src.workers.main",
+    "web": "npm run dev --prefix frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3"
+  }
+}

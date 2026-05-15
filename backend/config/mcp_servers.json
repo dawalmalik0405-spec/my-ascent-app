@@ -1,0 +1,111 @@
+{
+  "servers": {
+    "github": {
+      "enabled": true,
+      "description": "Official GitHub MCP server",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "required_env": ["GITHUB_TOKEN"]
+    },
+    "fetch": {
+      "enabled": true,
+      "description": "HTTP fetch via Ascent Python MCP (httpx)",
+      "transport": "stdio",
+      "command": "python",
+      "args": ["-m", "mcp_servers.fetch.server"],
+      "cwd": "${PROJECT_ROOT}/mcp-servers",
+      "env": {
+        "PYTHONPATH": "${PROJECT_ROOT}/mcp-servers"
+      },
+      "required_env": []
+    },
+    "brave_search": {
+      "enabled": false,
+      "description": "Brave web search (paid API) — disabled; use free search server instead",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      },
+      "required_env": ["BRAVE_API_KEY"]
+    },
+    "search": {
+      "enabled": true,
+      "description": "Free web search via DuckDuckGo (no API key)",
+      "transport": "stdio",
+      "command": "python",
+      "args": ["-m", "mcp_servers.search.server"],
+      "cwd": "${PROJECT_ROOT}/mcp-servers",
+      "env": {
+        "PYTHONPATH": "${PROJECT_ROOT}/mcp-servers"
+      },
+      "required_env": []
+    },
+    "kubernetes": {
+      "enabled": true,
+      "description": "Ascent Kubernetes MCP — real kubectl/cluster API",
+      "transport": "stdio",
+      "command": "python",
+      "args": ["-m", "mcp_servers.kubernetes.server"],
+      "cwd": "${PROJECT_ROOT}/mcp-servers",
+      "env": {
+        "PYTHONPATH": "${PROJECT_ROOT}/mcp-servers"
+      },
+      "required_env": []
+    },
+    "slack": {
+      "enabled": true,
+      "description": "Ascent Slack MCP — real Slack Web API",
+      "transport": "stdio",
+      "command": "python",
+      "args": ["-m", "mcp_servers.slack.server"],
+      "cwd": "${PROJECT_ROOT}/mcp-servers",
+      "env": {
+        "PYTHONPATH": "${PROJECT_ROOT}/mcp-servers",
+        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}"
+      },
+      "required_env": ["SLACK_BOT_TOKEN"]
+    },
+    "cloud": {
+      "enabled": true,
+      "description": "Ascent Cloud MCP — AWS CloudWatch metrics",
+      "transport": "stdio",
+      "command": "python",
+      "args": ["-m", "mcp_servers.cloud.server"],
+      "cwd": "${PROJECT_ROOT}/mcp-servers",
+      "env": {
+        "PYTHONPATH": "${PROJECT_ROOT}/mcp-servers"
+      },
+      "required_env": []
+    },
+    "email": {
+      "enabled": true,
+      "description": "Ascent Email MCP — real SMTP",
+      "transport": "stdio",
+      "command": "python",
+      "args": ["-m", "mcp_servers.email.server"],
+      "cwd": "${PROJECT_ROOT}/mcp-servers",
+      "env": {
+        "PYTHONPATH": "${PROJECT_ROOT}/mcp-servers"
+      },
+      "required_env": []
+    },
+    "code_exec": {
+      "enabled": false,
+      "description": "Sandboxed code execution (disabled by default for safety)",
+      "transport": "stdio",
+      "command": "python",
+      "args": ["-m", "mcp_servers.code_exec.server"],
+      "cwd": "${PROJECT_ROOT}/mcp-servers",
+      "env": {
+        "PYTHONPATH": "${PROJECT_ROOT}/mcp-servers"
+      },
+      "required_env": []
+    }
+  }
+}

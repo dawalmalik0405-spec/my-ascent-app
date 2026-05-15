@@ -1,0 +1,60 @@
+# Kubernetes deployment skeleton for Ascent Platform
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ascent-api
+  labels:
+    app: ascent-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ascent-api
+  template:
+    metadata:
+      labels:
+        app: ascent-api
+    spec:
+      containers:
+        - name: api
+          image: ascent-platform/api:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: ascent-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ascent-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ascent-worker
+  template:
+    metadata:
+      labels:
+        app: ascent-worker
+    spec:
+      containers:
+        - name: worker
+          image: ascent-platform/api:latest
+          command: ["python", "-m", "src.workers.main"]
+          envFrom:
+            - secretRef:
+                name: ascent-secrets
