@@ -21,11 +21,16 @@ const nav = [
   { href: "/tools", label: "MCP Tools", icon: Wrench },
 ];
 
+function navItemActive(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r border-border bg-card">
+    <aside className="relative z-20 flex h-screen w-64 shrink-0 flex-col border-r border-border bg-card">
       <div className="border-b border-border p-6">
         <h1 className="text-lg font-bold tracking-tight">Ascent</h1>
         <p className="text-xs text-muted-foreground">Autonomous Operations</p>
@@ -35,9 +40,10 @@ export function Sidebar() {
           <Link
             key={href}
             href={href}
+            prefetch
             className={cn(
               "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-              pathname === href
+              navItemActive(pathname, href)
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}

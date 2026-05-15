@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DemoTrigger } from "@/components/demo-trigger";
 import { fetchIncidents, fetchMcpTools } from "@/lib/api";
-import { Activity, AlertTriangle, Bot, Zap } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, Bot, Zap } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -65,9 +67,22 @@ export default async function OverviewPage() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <ModuleCard title="Incident Intelligence" desc="Autonomous SRE — triage, RCA, remediation, validation" primary />
-        <ModuleCard title="Support Intelligence" desc="Ticket classification, KB retrieval, incident correlation" />
-        <ModuleCard title="R&D Intelligence" desc="Trend analysis, competitor intel, strategic insights" />
+        <ModuleCard
+          href="/incidents"
+          title="Incident Intelligence"
+          desc="Autonomous SRE — triage, RCA, remediation, validation"
+          primary
+        />
+        <ModuleCard
+          href="/support"
+          title="Support Intelligence"
+          desc="Ticket classification, KB retrieval, incident correlation"
+        />
+        <ModuleCard
+          href="/research"
+          title="R&D Intelligence"
+          desc="Trend analysis, competitor intel, strategic insights"
+        />
       </div>
     </div>
   );
@@ -97,12 +112,41 @@ function StatCard({
   );
 }
 
-function ModuleCard({ title, desc, primary }: { title: string; desc: string; primary?: boolean }) {
+function ModuleCard({
+  href,
+  title,
+  desc,
+  primary,
+}: {
+  href: string;
+  title: string;
+  desc: string;
+  primary?: boolean;
+}) {
   return (
-    <Card className={primary ? "border-primary/40" : ""}>
-      <h3 className="font-semibold">{title}</h3>
-      <p className="mt-2 text-sm text-muted-foreground">{desc}</p>
-      {primary && <Badge variant="medium" className="mt-3">Primary Module</Badge>}
-    </Card>
+    <Link
+      href={href}
+      prefetch
+      className="group block rounded-lg outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      <Card
+        className={cn(
+          "h-full cursor-pointer transition-colors hover:border-primary/50 hover:bg-muted/20",
+          primary ? "border-primary/40" : ""
+        )}
+      >
+        <h3 className="font-semibold group-hover:text-primary">{title}</h3>
+        <p className="mt-2 text-sm text-muted-foreground">{desc}</p>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {primary ? (
+            <Badge variant="medium">Primary Module</Badge>
+          ) : null}
+          <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
+            Open
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          </span>
+        </div>
+      </Card>
+    </Link>
   );
 }

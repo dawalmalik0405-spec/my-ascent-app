@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { askResearch, fetchResearchDashboard, runResearchScan, type ResearchDashboard } from "@/lib/api";
+import { askResearch, runResearchScan, type ResearchDashboard } from "@/lib/api";
+import { RESEARCH_LIVE_POLL_MS, useResearchLive } from "@/context/research-live-context";
 
 function sectorVariant(sector?: string): string {
   const s = (sector || "other").toLowerCase();
@@ -35,44 +36,24 @@ function formatRelative(iso: string | null): string {
   return new Date(iso).toLocaleDateString();
 }
 
-const POLL_MS = 45_000;
-
 export function ResearchDashboard({ initial }: { initial: ResearchDashboard | null }) {
   const router = useRouter();
-  const [data, setData] = useState<ResearchDashboard | null>(initial);
+  const live = useResearchLive();
+  const data = live.dashboard ?? initial;
+
   const [query, setQuery] = useState("");
   const [scanQuery, setScanQuery] = useState(
     initial?.default_query || "latest AI agents cloud cybersecurity semiconductor trends"
   );
   const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [answer, setAnswer] = useState<string | null>(null);
 
   useEffect(() => {
-    setData(initial);
-  }, [initial]);
-
-  const refreshDashboard = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      const next = await fetchResearchDashboard();
-      if (next) setData(next);
-    } finally {
-      setRefreshing(false);
+    if (initial?.default_query) {
+      setScanQuery(initial.default_query);
     }
-  }, []);
-
-  useEffect(() => {
-    if (!initial) void refreshDashboard();
-  }, [initial, refreshDashboard]);
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      void refreshDashboard();
-    }, POLL_MS);
-    return () => window.clearInterval(id);
-  }, [refreshDashboard]);
+  }, [initial?.default_query]);
 
   async function handleAsk(e: React.FormEvent) {
     e.preventDefault();
@@ -84,7 +65,7 @@ export function ResearchDashboard({ initial }: { initial: ResearchDashboard | nu
       const res = await askResearch(query.trim());
       setAnswer(res.answer);
       router.refresh();
-      await refreshDashboard();
+      await live.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Question failed");
     } finally {
@@ -98,7 +79,7 @@ export function ResearchDashboard({ initial }: { initial: ResearchDashboard | nu
     try {
       await runResearchScan(scanQuery.trim());
       router.refresh();
-      await refreshDashboard();
+      await live.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Scan failed");
     } finally {
@@ -120,13 +101,14 @@ export function ResearchDashboard({ initial }: { initial: ResearchDashboard | nu
           </span>
           <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Live dashboard</span>
           <span className="text-xs text-muted-foreground">
-            Auto-refresh every {Math.round(POLL_MS / 1000)}s · Last ingest {formatRelative(data?.last_scan_at ?? null)}
-            {refreshing ? " · Updating…" : ""}
+            Auto-refresh every {Math.round(RESEARCH_LIVE_POLL_MS / 1000)}s · Last ingest{" "}
+            {formatRelative(data?.last_scan_at ?? null)}
+            {live.refreshing ? " · Updating…" : ""}
           </span>
           <button
             type="button"
-            onClick={() => void refreshDashboard()}
-            disabled={refreshing}
+            onClick={() => void live.refresh()}
+            disabled={live.refreshing}
             className="rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-muted disabled:opacity-50"
           >
             Refresh now
