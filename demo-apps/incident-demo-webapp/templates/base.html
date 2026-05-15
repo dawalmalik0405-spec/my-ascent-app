@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>{% block title %}Northwind Goods{% endblock %} — Demo store</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700&display=swap" rel="stylesheet"/>
+  <link href="/static/styles.css" rel="stylesheet"/>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="logo">Northwind<span>.</span></a>
+      <nav class="nav-links">
+        <a href="/">Home</a>
+        <a href="/shop">Shop</a>
+        <a href="/cart" class="cart-link">Cart <span id="cart-count">0</span></a>
+        <a href="/support">Support</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>{% block content %}{% endblock %}</main>
+
+  <footer class="site-footer">
+    Demo ecommerce for Ascent · <code>/checkout</code> (incidents) · <code>/support</code> (complaints → Ascent Support + email)
+  </footer>
+
+  <details class="ops-bar">
+    <summary>Incident demo — Trip / Heal checkout (Prometheus → Alertmanager → Ascent)</summary>
+    <div class="ops-inner">
+      <span>Simulate a bad deploy (checkout returns 500; gauge <code>demo_webapp_checkout_broken</code> → 1).</span>
+      <button type="button" class="ops-trip" onclick="demoTrip()">Trip checkout</button>
+      <button type="button" class="ops-heal" onclick="demoHeal()">Heal (rollback)</button>
+      <span id="ops-msg" style="color:#aaa"></span>
+    </div>
+  </details>
+
+  <script>
+    const CART_KEY = "nw_cart_v1";
+
+    function getCart() {
+      try {
+        return JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+      } catch { return []; }
+    }
+
+    function setCart(items) {
+      localStorage.setItem(CART_KEY, JSON.stringify(items));
+      updateCartBadge();
+    }
+
+    function updateCartBadge() {
+      const el = document.getElementById("cart-count");
+      if (!el) return;
+      const n = getCart().reduce((s, i) => s + (i.qty || 0), 0);
+      el.textContent = n;
+    }
+
+    function addToCart(product) {
+      const cart = getCart();
+      const i = cart.findIndex((x) => x.id === product.id);
+      if (i >= 0) cart[i].qty += 1;
+      else cart.push({ ...product, qty: 1 });
+      setCart(cart);
+      toast("Added to cart: " + product.name);
+    }
+
+    function toast(msg, isErr) {
+      const t = document.createElement("div");
+      t.className = "toast" + (isErr ? " err" : "");
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 3500);
+    }
+
+    async function demoTrip() {
+      const r = await fetch("/admin/trip", { method: "POST" });
+      const j = await r.json();
+      document.getElementById("ops-msg").textContent = j.hint || JSON.stringify(j);
+    }
+
+    async function demoHeal() {
+      await fetch("/admin/heal", { method: "POST" });
+      document.getElementById("ops-msg").textContent = "Checkout healthy — gauge 0.";
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      updateCartBadge();
+      document.body.addEventListener("click", (ev) => {
+        const btn = ev.target.closest(".js-add-cart");
+        if (!btn) return;
+        addToCart({
+          id: btn.dataset.id,
+          name: btn.dataset.name,
+          price: Number(btn.dataset.price),
+        });
+      });
+    });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

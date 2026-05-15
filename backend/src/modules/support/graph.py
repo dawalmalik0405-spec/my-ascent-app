@@ -8,9 +8,25 @@ from langgraph.graph import END, StateGraph
 from src.core.logging import get_logger
 from src.events.bus import get_event_bus
 from src.llm.router import TaskType, get_llm_router
+from src.modules.support.kb_catalog import lexical_rank_kb, merge_kb_hits
 from src.memory.qdrant_store import get_memory_store
 
 logger = get_logger(__name__)
+
+
+def _format_kb_for_prompt(kb_results: list[dict]) -> str:
+    if not kb_results:
+        return "(No matching KB articles.)"
+    lines: list[str] = []
+    for i, hit in enumerate(kb_results, 1):
+        p = hit.get("payload") or {}
+        title = p.get("title") or "Article"
+        solution = (p.get("solution") or p.get("text") or "").strip()
+        cat = p.get("category") or ""
+        score = hit.get("score")
+        score_note = f" relevance={float(score):.2f}" if isinstance(score, (int, float)) else ""
+        lines.append(f"{i}. [{cat}] {title}{score_note}\n   Approved reply guidance:\n   {solution}")
+    return "\n\n".join(lines)
 
 
 class SupportState(TypedDict, total=False):
@@ -56,12 +72,16 @@ async def classification(state: SupportState) -> dict:
 
 async def kb_retrieval(state: SupportState) -> dict:
     memory = await get_memory_store()
-    results = await memory.search_similar(
+    subject = state.get("subject") or ""
+    body = state.get("body") or ""
+    lexical_hits = lexical_rank_kb(subject, body, limit=5)
+    vector_hits = await memory.search_similar(
         "support",
-        f"{state.get('subject')} {state.get('body', '')}",
-        limit=3,
+        f"{subject} {body}",
+        limit=5,
     )
-    return {"kb_results": results, "messages": [{"agent": "kb_retrieval", "count": len(results)}]}
+    merged = merge_kb_hits(lexical_hits, vector_hits, limit=5)[:3]
+    return {"kb_results": merged, "messages": [{"agent": "kb_retrieval", "count": len(merged)}]}
 
 
 async def correlate_incident(state: SupportState) -> dict:
@@ -86,12 +106,25 @@ async def correlate_incident(state: SupportState) -> dict:
 
 async def generate_response(state: SupportState) -> dict:
     router = get_llm_router()
+    kb_block = _format_kb_for_prompt(state.get("kb_results") or [])
     resp = await router.complete(
         [
-            {"role": "system", "content": "Generate a professional customer support response."},
+            {
+                "role": "system",
+                "content": (
+                    "Generate a professional customer support email reply. "
+                    "Ground your answer in the KB guidance when it applies; "
+                    "you may paraphrase but do not invent policies that contradict the KB."
+                ),
+            },
             {
                 "role": "user",
-                "content": f"Ticket: {state.get('subject')}\nCategory: {state.get('category')}\nKB: {state.get('kb_results', [])}",
+                "content": (
+                    f"Ticket subject: {state.get('subject')}\n"
+                    f"Ticket body:\n{state.get('body', '')}\n\n"
+                    f"Category (from triage): {state.get('category')}\n\n"
+                    f"KB articles retrieved for this ticket:\n{kb_block}"
+                ),
             },
         ],
         task_type=TaskType.SUMMARIZATION,

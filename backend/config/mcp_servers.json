@@ -1,7 +1,7 @@
 {
   "servers": {
     "github": {
-      "enabled": true,
+      "enabled": false,
       "description": "Official GitHub MCP server",
       "transport": "stdio",
       "command": "npx",

@@ -1,0 +1,21 @@
+# Routes all alerts to Ascent. Webhook URL must reach the API process.
+#
+# Docker Desktop (Windows/Mac): host.docker.internal → your machine (API on :8000 from start.ps1).
+# Linux Compose: extra_hosts host-gateway is set on the alertmanager service in docker-compose.yml.
+#
+# If the API runs inside Docker on the same compose project, change the URL to:
+#   http://api:8000/api/v1/webhooks/alertmanager
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: ascent
+  group_wait: 10s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: ascent
+    webhook_configs:
+      - url: http://host.docker.internal:8000/api/v1/webhooks/alertmanager
+        send_resolved: false

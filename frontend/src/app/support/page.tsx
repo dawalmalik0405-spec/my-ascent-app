@@ -1,6 +1,5 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { SupportTicketForm } from "@/components/support-ticket-form";
 import { fetchSupportTickets } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -16,27 +15,39 @@ export default async function SupportPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold">Support Intelligence</h1>
+        <div>
+          <h1 className="text-3xl font-bold">Support Intelligence</h1>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            Tickets created by customers through the{" "}
+            <strong>Northwind demo store</strong> appear below after Ascent processes them (classification,
+            KB retrieval, AI draft reply, optional email).
+          </p>
+        </div>
         <a
-          href="/complain"
+          href="http://localhost:9110/support"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm text-primary underline"
+          className="shrink-0 text-sm text-primary underline"
         >
-          Customer portal → /complain
+          Open demo store → Submit complaint
         </a>
       </div>
-      <Card>
-        <h2 className="mb-3 text-lg font-semibold">Submit ticket</h2>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Runs the support LangGraph pipeline: intake → classification → KB retrieval → escalation → response.
-        </p>
-        <SupportTicketForm />
-      </Card>
+
       <Card>
         <h2 className="mb-4 text-lg font-semibold">Recent tickets</h2>
         {tickets.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No tickets yet. Submit one above.</p>
+          <p className="text-sm text-muted-foreground">
+            No tickets yet. Submit a complaint from the demo store at{" "}
+            <a
+              href="http://localhost:9110/support"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline"
+            >
+              localhost:9110/support
+            </a>
+            .
+          </p>
         ) : (
           <ul className="space-y-3">
             {tickets.map((t) => (

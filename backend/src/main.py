@@ -22,7 +22,13 @@ async def lifespan(app: FastAPI):
     init_tracing()
     try:
         await get_event_bus()
-        await get_memory_store()
+        memory = await get_memory_store()
+        try:
+            from src.modules.support.kb_catalog import seed_support_kb_to_qdrant
+
+            await seed_support_kb_to_qdrant(memory)
+        except Exception as e:
+            logger.warning("support_kb_seed_failed", error=str(e))
         if not settings.simulate_enterprise_tools and (
             settings.init_mcp_on_api or settings.enable_research_auto_scan
         ):

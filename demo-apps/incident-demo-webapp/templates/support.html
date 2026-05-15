@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Support{% endblock %}
+{% block content %}
+<section class="support-hero">
+  <p class="status-pill">Northwind customer care</p>
+  <h1>We’re here to help</h1>
+  <p class="lead">Describe your issue below. Your request is sent to the <strong>Ascent</strong> support workspace, where our team’s AI-assisted pipeline classifies it and drafts a reply. If email (SMTP) is configured on the platform, you’ll get the response at the address you provide.</p>
+</section>
+
+{% if err %}
+<div class="banner banner-err" role="alert">
+  <strong>Could not submit</strong>
+  <p>{{ err }}</p>
+</div>
+{% endif %}
+
+{% if ok == "submitted" %}
+<div class="banner banner-ok" role="status">
+  <strong>Complaint received</strong>
+  <p>Thank you — we registered your message with Ascent. Check the <strong>Support</strong> page in the Ascent console to see your ticket and email delivery status.</p>
+</div>
+{% endif %}
+
+<form class="support-form card" method="post" action="/support">
+  <h2 class="form-title">Register a complaint</h2>
+
+  <label class="field">
+    <span class="field-label">Your email <span class="req">*</span></span>
+    <input type="email" name="customer_email" required maxlength="254" autocomplete="email" placeholder="you@example.com"/>
+    <span class="field-hint">Used for Ascent’s automated reply email (when SMTP is enabled).</span>
+  </label>
+
+  <label class="field">
+    <span class="field-label">Name (optional)</span>
+    <input type="text" name="customer_name" maxlength="128" autocomplete="name" placeholder="Jordan Lee"/>
+  </label>
+
+  <label class="field">
+    <span class="field-label">Subject <span class="req">*</span></span>
+    <input type="text" name="subject" required minlength="3" maxlength="500" placeholder="Late shipment / damaged item / checkout issue"/>
+  </label>
+
+  <label class="field">
+    <span class="field-label">What happened? <span class="req">*</span></span>
+    <textarea name="body" required minlength="10" maxlength="8000" rows="8" placeholder="Please include order details, dates, and what you expected vs what happened (min 10 characters)."></textarea>
+  </label>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Submit to Ascent</button>
+    <a class="btn btn-outline" href="/shop">Back to shop</a>
+  </div>
+
+  <p class="form-meta text-muted">Demo integration · Ascent API: <code>{{ ascent_api_base }}</code></p>
+</form>
+{% endblock %}

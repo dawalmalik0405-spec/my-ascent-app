@@ -1,0 +1,216 @@
+[
+  {
+    "id": "nw-shipping-delay",
+    "category": "shipping",
+    "title": "Order is late or tracking has not updated",
+    "symptoms": [
+      "late delivery",
+      "delayed shipment",
+      "tracking not updating",
+      "where is my package",
+      "has not arrived",
+      "estimated delivery passed",
+      "carrier delay",
+      "stuck in transit"
+    ],
+    "solution": "We are sorry your order is behind schedule. Please check the tracking link in your confirmation email; carriers sometimes skip scans for 24–48 hours. If the package is more than five business days past the estimated delivery window, reply with your order number and we will expedite a replacement or issue a full refund including any paid shipping."
+  },
+  {
+    "id": "nw-damaged-item",
+    "category": "returns",
+    "title": "Item arrived damaged or defective",
+    "symptoms": [
+      "broken",
+      "damaged",
+      "cracked",
+      "defective",
+      "torn",
+      "dented",
+      "not working",
+      "arrived in bad condition"
+    ],
+    "solution": "We will make this right quickly. Please send 1–2 photos of the packaging and the damaged item, plus your order number. We will ship a replacement at no charge or refund the item immediately—whichever you prefer."
+  },
+  {
+    "id": "nw-wrong-item",
+    "category": "returns",
+    "title": "Wrong item or quantity shipped",
+    "symptoms": [
+      "wrong item",
+      "incorrect product",
+      "missing items",
+      "extra items",
+      "wrong color",
+      "wrong size shipped",
+      "not what I ordered"
+    ],
+    "solution": "Thank you for letting us know. Please confirm your order number and what you received versus what you ordered. We will email a prepaid return label for the incorrect goods and ship the correct items—or refund you if you prefer not to wait."
+  },
+  {
+    "id": "nw-checkout-error",
+    "category": "orders",
+    "title": "Checkout fails or payment errors during checkout",
+    "symptoms": [
+      "checkout failed",
+      "cannot complete order",
+      "payment error",
+      "card declined",
+      "something went wrong at checkout",
+      "order will not go through",
+      "500 error checkout"
+    ],
+    "solution": "We are aware checkout can occasionally fail during high traffic or maintenance. Please try once more in a private browser window and confirm your billing address matches your bank. If it still fails, use a different payment method or contact your bank for a pre-authorization hold. Reply with approximate time of the attempt and we will verify on our side and honor any sale price manually if needed."
+  },
+  {
+    "id": "nw-duplicate-charge",
+    "category": "billing",
+    "title": "Duplicate charge or unexpected amount",
+    "symptoms": [
+      "charged twice",
+      "duplicate charge",
+      "double charge",
+      "wrong amount",
+      "extra charge",
+      "unauthorized charge",
+      "billing issue"
+    ],
+    "solution": "We take billing issues seriously. Please share the last four digits of the card used, the transaction dates, and amounts you see. We will reconcile against our gateway within one business day; legitimate duplicates are refunded immediately. Pending authorizations often drop within 48 hours—your bank can confirm."
+  },
+  {
+    "id": "nw-refund-timing",
+    "category": "billing",
+    "title": "Refund status or timing",
+    "symptoms": [
+      "where is my refund",
+      "how long refund",
+      "money not back",
+      "credit not posted",
+      "still waiting refund"
+    ],
+    "solution": "Refunds post to your original payment method within three to seven business days after we process them (banks vary). You will receive an email when the refund is initiated. If nothing appears after ten business days, reply with your order number and we will trace it with our processor."
+  },
+  {
+    "id": "nw-return-policy",
+    "category": "returns",
+    "title": "How to start a return or exchange",
+    "symptoms": [
+      "return policy",
+      "how to return",
+      "exchange",
+      "send back",
+      "dont want anymore",
+      "changed mind"
+    ],
+    "solution": "Unused items in original packaging may be returned within thirty days for a refund or exchange. Start by replying with your order number and whether you prefer refund or exchange; we will send a prepaid label where eligible. Final sale items are marked at checkout—those cannot be returned unless defective."
+  },
+  {
+    "id": "nw-promo-code",
+    "category": "orders",
+    "title": "Promo or discount code not applying",
+    "symptoms": [
+      "coupon",
+      "promo code",
+      "discount not working",
+      "code invalid",
+      "offer expired",
+      "free shipping code"
+    ],
+    "solution": "Codes must be entered before submitting payment and cannot be stacked unless stated. Confirm the promotion dates and cart minimums in the fine print. If you believe it should work, send a screenshot of your cart and the code—we will apply the discount retroactively as a partial refund when eligible."
+  },
+  {
+    "id": "nw-gift-order",
+    "category": "orders",
+    "title": "Gift message, receipt, or discreet packaging",
+    "symptoms": [
+      "gift",
+      "gift receipt",
+      "no price on packing slip",
+      "surprise gift",
+      "message on gift"
+    ],
+    "solution": "We can include a gift message on the packing slip and omit prices when requested before the order ships. If the order already shipped, we cannot alter packing—but we can email a gift receipt separately. Reply with your order number and the exact message you would like kept under sixty characters."
+  },
+  {
+    "id": "nw-international",
+    "category": "shipping",
+    "title": "International duties, taxes, or customs delays",
+    "symptoms": [
+      "customs",
+      "duty",
+      "vat",
+      "international shipping",
+      "held at border",
+      "import fee"
+    ],
+    "solution": "International orders may incur duties and taxes assessed by your country—those are paid to the carrier or customs authority, not to Northwind. Delays at customs are outside our control but usually resolve within a few days. Share your tracking number if the shipment has been held longer than ten business days so we can open a carrier inquiry."
+  },
+  {
+    "id": "nw-product-care",
+    "category": "general",
+    "title": "Care instructions or product specifications",
+    "symptoms": [
+      "care instructions",
+      "wash",
+      "dimensions",
+      "material",
+      "is it dishwasher safe",
+      "specifications"
+    ],
+    "solution": "Care details are on the product page under Specifications & Care. For stoneware mugs we recommend hand washing to preserve glaze; cotton totes are cold wash gentle and air dry; walnut trays benefit from occasional food-safe oil. If anything differs from what you received, send photos and we will assist."
+  },
+  {
+    "id": "nw-stock-cancel",
+    "category": "orders",
+    "title": "Order canceled or item out of stock after purchase",
+    "symptoms": [
+      "order canceled",
+      "cancellation",
+      "out of stock",
+      "oversold",
+      "inventory issue"
+    ],
+    "solution": "If we cancel due to inventory, you are never charged—or any authorization drops automatically. When a partial shipment occurs we refund unavailable lines immediately and ship what is ready. If you still see a charge after five business days, email us your order number for an expedited reconciliation."
+  },
+  {
+    "id": "nw-email-order-update",
+    "category": "general",
+    "title": "Missing confirmation email or account access",
+    "symptoms": [
+      "confirmation email",
+      "did not receive email",
+      "spam",
+      "wrong email",
+      "cannot log in",
+      "account"
+    ],
+    "solution": "Please check spam/junk for messages from orders@northwind.demo. If nothing arrives within fifteen minutes, reply with the email used at checkout—we will resend confirmation and tracking. For typos in email addresses we can merge receipts manually once you verify ownership."
+  },
+  {
+    "id": "nw-warranty-handmade",
+    "category": "returns",
+    "title": "Minor handmade variation vs defect",
+    "symptoms": [
+      "variation",
+      "not identical",
+      "handmade",
+      "glaze difference",
+      "color slightly different",
+      "unique piece"
+    ],
+    "solution": "Small variations in glaze, wood grain, or hand-finished goods are normal and part of the design. If function is impaired—for example leaks, unstable base, or sharp chips—we treat that as a defect. Photos help us decide quickly and we will replace or refund defective pieces."
+  },
+  {
+    "id": "nw-env-impact",
+    "category": "general",
+    "title": "Packaging, sustainability, or recycling",
+    "symptoms": [
+      "packaging too much",
+      "plastic",
+      "recyclable",
+      "eco",
+      "sustainable",
+      "environment"
+    ],
+    "solution": "We use recycled-content boxes and paper fills where possible and size boxes to reduce waste. Foam or bubble wrap appears only when needed to prevent breakage on fragile ceramics. Local recycling rules vary—paper fibers and corrugated cardboard are widely recyclable."
+  }
+]

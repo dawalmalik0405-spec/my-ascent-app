@@ -10,6 +10,10 @@ from src.llm.router import TaskType, get_llm_router
 from src.mcp.registry import get_mcp_registry
 from src.mcp.tool_map import INCIDENT_TOOLS, github_repo
 from src.memory.qdrant_store import get_memory_store
+from src.modules.incident.evidence_normalize import (
+    annotate_tool_record,
+    build_structured_evidence_bundle,
+)
 from src.modules.incident.state import IncidentState, RemediationAction
 from src.observability.metrics import agent_duration_seconds, agent_executions_total
 from src.observability.tracing import trace_span
@@ -138,11 +142,11 @@ async def root_cause_analysis_agent(state: IncidentState) -> dict[str, Any]:
             namespace = DEFAULT_NAMESPACE
 
         pods_key, pods_args_fn = INCIDENT_TOOLS["pods"]
-        pods_result = await _invoke_mcp(mcp, pods_key, pods_args_fn(namespace))
+        pods_result = annotate_tool_record(await _invoke_mcp(mcp, pods_key, pods_args_fn(namespace)))
         tool_results.append(pods_result)
 
         pod_name = os.environ.get("K8S_DEBUG_POD", "")
-        if not pod_name and pods_result.get("success") and isinstance(pods_result.get("data"), dict):
+        if not pod_name and pods_result.get("outcome_ok") and isinstance(pods_result.get("data"), dict):
             items = pods_result["data"].get("items", [])
             for item in items:
                 status = item.get("status", {}).get("phase", "")
@@ -154,29 +158,47 @@ async def root_cause_analysis_agent(state: IncidentState) -> dict[str, Any]:
 
         if pod_name:
             logs_key, logs_args_fn = INCIDENT_TOOLS["logs"]
-            tool_results.append(await _invoke_mcp(mcp, logs_key, logs_args_fn(pod_name, namespace)))
+            tool_results.append(
+                annotate_tool_record(await _invoke_mcp(mcp, logs_key, logs_args_fn(pod_name, namespace)))
+            )
 
         commits_key, commits_args_fn = INCIDENT_TOOLS["commits"]
-        tool_results.append(await _invoke_mcp(mcp, commits_key, commits_args_fn()))
+        tool_results.append(annotate_tool_record(await _invoke_mcp(mcp, commits_key, commits_args_fn())))
 
         owner, repo = github_repo()
         search_key, search_args_fn = INCIDENT_TOOLS["search_code"]
         tool_results.append(
-            await _invoke_mcp(mcp, search_key, search_args_fn("connection pool redis"))
+            annotate_tool_record(
+                await _invoke_mcp(mcp, search_key, search_args_fn("connection pool redis"))
+            )
         )
 
         metrics_key, metrics_args_fn = INCIDENT_TOOLS["metrics"]
-        tool_results.append(await _invoke_mcp(mcp, metrics_key, metrics_args_fn(s.get("service", ""))))
+        tool_results.append(
+            annotate_tool_record(await _invoke_mcp(mcp, metrics_key, metrics_args_fn(s.get("service", ""))))
+        )
 
         service = s.get("service", "payment")
         web_key, web_args_fn = INCIDENT_TOOLS["web_search"]
         tool_results.append(
-            await _invoke_mcp(mcp, web_key, web_args_fn(f"{service} outage status"))
+            annotate_tool_record(
+                await _invoke_mcp(mcp, web_key, web_args_fn(f"{service} outage status"))
+            )
         )
 
         findings = [
-            r.get("tool", "") + (": " + str(r.get("error") or "ok")[:80]) for r in tool_results
+            (
+                f"{r.get('tool', '')}: "
+                f"{'ok' if r.get('outcome_ok') else 'failed'} "
+                f"({str(r.get('outcome_detail') or '')[:140]})"
+            )
+            for r in tool_results
         ]
+        structured_inv = build_structured_evidence_bundle(
+            s.get("alert_payload"),
+            tool_results,
+            remediation_results=[],
+        )
         inc_id = s.get("incident_id")
         if inc_id:
             from src.modules.incident.persist import persist_investigation_evidence
@@ -192,6 +214,7 @@ async def root_cause_analysis_agent(state: IncidentState) -> dict[str, Any]:
             {
                 "triage": s.get("triage_result"),
                 "correlation": s.get("correlation_result"),
+                "structured_evidence": structured_inv,
                 "mcp_tool_results": tool_results,
                 "historical": s.get("historical_incidents", [])[:3],
             },
@@ -204,7 +227,15 @@ async def root_cause_analysis_agent(state: IncidentState) -> dict[str, Any]:
                     [
                         {
                             "role": "system",
-                            "content": "You are an expert SRE performing root cause analysis from REAL tool outputs. Be specific.",
+                            "content": (
+                                "You are an expert SRE performing root cause analysis from REAL tool outputs.\n"
+                                "- Follow structured_evidence.analyst_rules.\n"
+                                "- Use each tool's outcome_ok / outcome_detail — do not rely only on "
+                                "legacy mcp success flags.\n"
+                                "- If alert_context_hints mentions a demo checkout gauge, distinguish simulated "
+                                "store outages from Kubernetes/GitHub tooling failures.\n"
+                                "- If evidence_contradictions is non-empty, explain those tensions explicitly."
+                            ),
                         },
                         {"role": "user", "content": f"Analyze this incident:\n{context}"},
                     ],
@@ -282,13 +313,14 @@ async def remediation_agent(state: IncidentState) -> dict[str, Any]:
             for action in plan:
                 if action["risk_level"] == "high" and not state.get("approval_granted"):
                     continue
+                raw = await _invoke_mcp(mcp, action["tool"], action["arguments"])
                 results.append(
-                    {
-                        "action": action["description"],
-                        **(
-                            await _invoke_mcp(mcp, action["tool"], action["arguments"])
-                        ),
-                    }
+                    annotate_tool_record(
+                        {
+                            "action": action["description"],
+                            **raw,
+                        }
+                    )
                 )
 
         return {
@@ -307,10 +339,11 @@ async def validation_agent(state: IncidentState) -> dict[str, Any]:
         mcp = get_mcp_registry()
         namespace = DEFAULT_NAMESPACE
         pods_key, pods_fn = INCIDENT_TOOLS["pods"]
-        pods = await _invoke_mcp(mcp, pods_key, pods_fn(namespace))
+        pods_raw = await _invoke_mcp(mcp, pods_key, pods_fn(namespace))
+        pods = annotate_tool_record(pods_raw)
 
         all_running = False
-        if pods.get("success") and isinstance(pods.get("data"), dict):
+        if pods.get("outcome_ok") and isinstance(pods.get("data"), dict):
             items = pods["data"].get("items", [])
             all_running = bool(items) and all(
                 i.get("status", {}).get("phase") == "Running" for i in items
@@ -320,8 +353,9 @@ async def validation_agent(state: IncidentState) -> dict[str, Any]:
         health_url = os.environ.get("HEALTH_CHECK_URL", "")
         fetch_ok = False
         if health_url:
-            fetch_result = await _invoke_mcp(mcp, fetch_key, {"url": health_url})
-            fetch_ok = fetch_result.get("success", False)
+            fetch_raw = await _invoke_mcp(mcp, fetch_key, {"url": health_url})
+            fetch_ann = annotate_tool_record(fetch_raw)
+            fetch_ok = bool(fetch_ann.get("outcome_ok"))
 
         passed = all_running or fetch_ok
         retry_count = s.get("validation_retry_count", 0)
@@ -349,19 +383,35 @@ async def reporting_agent(state: IncidentState) -> dict[str, Any]:
         from uuid import UUID
 
         router = get_llm_router()
+        structured = build_structured_evidence_bundle(
+            s.get("alert_payload"),
+            s.get("tool_results") or [],
+            remediation_results=s.get("remediation_results") or [],
+        )
         context = {
             "title": s.get("title"),
             "severity": s.get("severity"),
             "root_cause": s.get("root_cause"),
             "findings": s.get("investigation_findings"),
+            "structured_evidence": structured,
             "remediation": s.get("remediation_results"),
             "validation": s.get("validation_result"),
         }
         try:
             response = await router.complete(
                 [
-                    {"role": "system", "content": "Generate a professional incident postmortem report."},
-                    {"role": "user", "content": f"Create incident report:\n{json.dumps(context, indent=2)}"},
+                    {
+                        "role": "system",
+                        "content": (
+                            "Generate a professional incident postmortem report.\n"
+                            "- Follow structured_evidence.analyst_rules.\n"
+                            "- When describing remediation steps, use each entry's outcome_ok / outcome_detail; "
+                            "never label a step successful if effective_success would be false.\n"
+                            "- Call out evidence_contradictions and alert_context_hints when present.\n"
+                            "- Separate monitoring alert impact from tooling gaps."
+                        ),
+                    },
+                    {"role": "user", "content": f"Create incident report:\n{json.dumps(context, indent=2, default=str)}"},
                 ],
                 task_type=TaskType.SUMMARIZATION,
             )

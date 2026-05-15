@@ -117,8 +117,47 @@ services:
     image: prom/prometheus:v2.54.1
     ports:
       - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./infrastructure/prometheus/alerts.yml:/etc/prometheus/alerts.yml
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-lifecycle
+    depends_on:
+      - alertmanager
+      - demo-webapp
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    ports:
+      - "9093:9093"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./infrastructure/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+
+  synthetic-probe:
+    build:
+      context: ./infrastructure/synthetic-probe
+      dockerfile: Dockerfile
+    ports:
+      - "9109:9109"
+
+  demo-webapp:
+    build:
+      context: ./demo-apps/incident-demo-webapp
+      dockerfile: Dockerfile
+    ports:
+      - "9110:9110"
+    environment:
+      # Ascent API on host (start.ps1). Complaints POST /api/v1/support/complaints from demo store /support.
+      ASCENT_API_BASE_URL: http://host.docker.internal:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   grafana:
     image: grafana/grafana:11.2.0

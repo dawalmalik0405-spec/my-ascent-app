@@ -166,6 +166,7 @@ export interface ResearchTrend {
   name: string;
   summary: string;
   impact: string;
+  sector?: string;
 }
 
 export interface ResearchNewsItem {
@@ -173,6 +174,7 @@ export interface ResearchNewsItem {
   url?: string;
   snippet?: string;
   summary?: string;
+  watch_topic?: string;
 }
 
 export interface ResearchSignal {
@@ -197,6 +199,13 @@ export interface ResearchDashboard {
   auto_scan_enabled: boolean;
   auto_scan_interval_hours: number;
   default_query: string;
+  analysis_snapshot?: string | null;
+  pulse_highlights?: string[];
+  aggregated_news_count?: number;
+  aggregated_trends_count?: number;
+  signal_count?: number;
+  sectors_monitored?: string[];
+  watch_queries?: string[];
 }
 
 export interface ResearchScanResult {

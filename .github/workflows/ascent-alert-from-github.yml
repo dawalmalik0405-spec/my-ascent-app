@@ -1,0 +1,84 @@
+# Sends a Prometheus-shaped alert to Ascent so an incident + investigation start automatically.
+#
+# GitHub hosting files alone does NOT notify Ascent — this workflow (or similar) is the bridge.
+#
+# Setup:
+#   1. Repo → Settings → Secrets → Actions → add ASCENT_WEBHOOK_URL
+#      Example: https://YOUR-PUBLIC-HOST/api/v1/webhooks/alerts
+#      (GitHub Cloud cannot reach http://localhost — use a tunnel or deployed Ascent.)
+#   2. Optionally fork/copy this file into any repo that should signal Ascent.
+#
+# Triggers:
+#   - workflow_dispatch: run manually from Actions tab (good for demos).
+#   - workflow_run: when this repo's "CI" workflow finishes with failure (realistic "broken build" alert).
+
+name: Ascent alert from GitHub
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+jobs:
+  notify-ascent:
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'failure')
+
+    steps:
+      - name: POST monitoring alert to Ascent
+        env:
+          ASCENT_WEBHOOK_URL: ${{ secrets.ASCENT_WEBHOOK_URL }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          FULL_REPO: ${{ github.repository }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+          EVENT: ${{ github.event_name }}
+          WF_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ASCENT_WEBHOOK_URL:-}" ]; then
+            echo "::warning::ASCENT_WEBHOOK_URL secret not set — skipping Ascent notify."
+            exit 0
+          fi
+
+          if [ "$EVENT" = "workflow_run" ]; then
+            DESC="CI workflow failed for ${{ github.repository }}. Head SHA: ${WF_HEAD_SHA}"
+            SUMMARY="CI failure — ${{ github.repository }}"
+          else
+            DESC="Manual Ascent test from GitHub Actions. Ref: ${REF} SHA: ${SHA}"
+            SUMMARY="GitHub Actions manual alert — ${REPO_NAME}"
+          fi
+
+          BODY=$(jq -n \
+            --arg status "firing" \
+            --arg summary "$SUMMARY" \
+            --arg description "$DESC" \
+            --arg repo "$FULL_REPO" \
+            --arg svc "$REPO_NAME" \
+            --arg envt "ci" \
+            --arg alertname "GitHubActionsSignal" \
+            --arg severity "high" \
+            '{
+              status: $status,
+              labels: {
+                alertname: $alertname,
+                severity: $severity,
+                service: $svc,
+                environment: $envt,
+                github_repository: $repo
+              },
+              annotations: {
+                summary: $summary,
+                description: $description
+              }
+            }')
+
+          curl -sS -f -X POST "$ASCENT_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$BODY"
+
+          echo "Ascent webhook accepted."

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="hero-copy">
+    <p class="status-pill">Free shipping over $75 · demo store</p>
+    <h1>Everyday goods, thoughtfully made.</h1>
+    <p>Shop bags, ceramics, and workspace pieces. When checkout breaks after a deploy, your monitoring fires — and Ascent can investigate.</p>
+    <p style="margin-top:1.25rem;display:flex;flex-wrap:wrap;gap:0.65rem">
+      <a class="btn btn-primary" href="/shop">Browse shop</a>
+      <a class="btn btn-outline" href="/cart">View cart</a>
+      <a class="btn btn-outline" href="/support">Customer support</a>
+    </p>
+  </div>
+  <div class="hero-visual">
+    <div class="big">🧺</div>
+    <p style="margin:1rem 0 0;font-size:1rem;opacity:.92">Weekend market picks · curated for demo incidents</p>
+  </div>
+</section>
+
+<h2 class="section-title">Featured</h2>
+<div class="product-grid">
+  {% for p in featured %}
+  <article class="card">
+    <div class="card-visual">{{ p.emoji }}</div>
+    <div class="card-body">
+      <h3>{{ p.name }}</h3>
+      <p style="margin:0;font-size:.9rem;color:var(--muted)">{{ p.blurb }}</p>
+      <div class="price-row">
+        <span class="price">${{ "%.2f"|format(p.price) }}</span>
+        {% if p.badge %}<span class="badge">{{ p.badge }}</span>{% endif %}
+      </div>
+      <button type="button" class="btn btn-primary js-add-cart" style="width:100%;margin-top:.75rem"
+        data-id="{{ p.id }}" data-name="{{ p.name }}" data-price="{{ p.price }}">
+        Add to cart
+      </button>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

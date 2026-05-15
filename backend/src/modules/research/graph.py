@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import operator
 import re
@@ -14,10 +15,14 @@ from src.core.logging import get_logger
 from src.llm.router import TaskType, get_llm_router
 from src.mcp.registry import get_mcp_registry
 from src.memory.qdrant_store import get_memory_store
+from src.modules.research.constants import TECH_INDUSTRY_WATCH_QUERIES
 
 logger = get_logger(__name__)
 
 DEFAULT_SCAN_QUERY = "latest technology industry news AI agents cloud infrastructure trends 2026"
+
+MAX_PARALLEL_WEB_SEARCHES = 5
+MAX_NEWS_ITEMS = 36
 
 
 class ResearchState(TypedDict, total=False):
@@ -28,6 +33,8 @@ class ResearchState(TypedDict, total=False):
     competitor_intel: list[dict]
     strategic_insights: str
     answer: str
+    analysis_snapshot: str
+    watch_queries_used: list[str]
     messages: Annotated[list[dict], operator.add]
 
 
@@ -57,6 +64,43 @@ def _parse_web_search_payload(data: Any) -> list[dict]:
     return items
 
 
+def _normalize_news_key(item: dict) -> str:
+    url = (item.get("url") or "").strip().split("#")[0].rstrip("/").lower()
+    if url:
+        return f"u:{url}"
+    return f"t:{(item.get('title') or '').strip().lower()}"
+
+
+def _dedupe_news(items: list[dict]) -> list[dict]:
+    seen: set[str] = set()
+    out: list[dict] = []
+    for it in items:
+        key = _normalize_news_key(it)
+        if not key.replace("u:", "").replace("t:", ""):
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(it)
+    return out[:MAX_NEWS_ITEMS]
+
+
+def _watch_query_plan(primary: str) -> list[str]:
+    """Primary query plus diversified industry angles (deduped)."""
+    primary_clean = primary.strip()
+    slugs = {primary_clean.lower()}
+    ordered = [primary_clean]
+    for q in TECH_INDUSTRY_WATCH_QUERIES:
+        low = q.lower()
+        if low in slugs:
+            continue
+        slugs.add(low)
+        ordered.append(q)
+        if len(ordered) >= MAX_PARALLEL_WEB_SEARCHES:
+            break
+    return ordered
+
+
 def _parse_llm_json(content: str) -> dict:
     content = content.strip()
     try:
@@ -73,20 +117,39 @@ def _parse_llm_json(content: str) -> dict:
 
 async def research_agent(state: ResearchState) -> dict:
     mcp = get_mcp_registry()
-    query = state.get("query") or DEFAULT_SCAN_QUERY
-    web = await mcp.invoke("search.web_search", {"query": query, "max_results": 8})
-    news_items = _parse_web_search_payload(web.data if web.success else [])
+    primary = state.get("query") or DEFAULT_SCAN_QUERY
+    queries = _watch_query_plan(primary)
+    sem = asyncio.Semaphore(MAX_PARALLEL_WEB_SEARCHES)
+
+    async def _search_one(q: str) -> tuple[str, Any, bool]:
+        async with sem:
+            web = await mcp.invoke("search.web_search", {"query": q, "max_results": 8})
+            return q, web.data, web.success
+
+    gathered = await asyncio.gather(*[_search_one(q) for q in queries])
+
+    sources: list[dict] = []
+    merged_raw: list[dict] = []
+    for q, data, ok in gathered:
+        sources.append({"type": "web_search", "query": q, "ok": ok})
+        payload = data if ok else []
+        for item in _parse_web_search_payload(payload):
+            item.setdefault("watch_topic", q[:72])
+            merged_raw.append(item)
+
+    news_items = _dedupe_news(merged_raw)
     return {
-        "sources": [{"type": "web_search", "query": query, "data": web.data}],
+        "sources": sources,
         "news_items": news_items,
-        "messages": [{"agent": "research", "news_count": len(news_items)}],
+        "watch_queries_used": queries,
+        "messages": [{"agent": "research", "news_count": len(news_items), "queries": len(queries)}],
     }
 
 
 async def trend_analysis(state: ResearchState) -> dict:
     router = get_llm_router()
     news = state.get("news_items", [])
-    context = json.dumps(news[:8], indent=2) if news else str(state.get("sources", []))
+    context = json.dumps(news[:22], indent=2, default=str) if news else str(state.get("sources", []))
     trends: list[dict] = []
     try:
         resp = await router.complete(
@@ -94,9 +157,15 @@ async def trend_analysis(state: ResearchState) -> dict:
                 {
                     "role": "system",
                     "content": (
-                        "You analyze tech industry news. Return ONLY valid JSON with keys: "
-                        "trends (array of {name, summary, impact: high|medium|low}), "
-                        "news (array of {title, summary} — one summary per source title, 1-2 sentences)."
+                        "You analyze global technology industries (AI/ML & agents, cloud & infra, "
+                        "semiconductors, cybersecurity, developer platforms). "
+                        "Return ONLY valid JSON with keys:\n"
+                        "- trends: array of {name, summary, impact: high|medium|low, sector} "
+                        "where sector is one of: ai, cloud, chips, security, devtools, other.\n"
+                        "- news: array of {title, summary} aligned to supplied headlines when possible "
+                        "(1–2 sentences each).\n"
+                        "- snapshot: one paragraph (<=120 words) executive snapshot of what matters this week "
+                        "for enterprise engineering leaders."
                     ),
                 },
                 {
@@ -107,13 +176,14 @@ async def trend_analysis(state: ResearchState) -> dict:
             task_type=TaskType.REASONING,
         )
         parsed = _parse_llm_json(resp.content)
-        for t in parsed.get("trends", [])[:6]:
+        for t in parsed.get("trends", [])[:8]:
             if isinstance(t, dict) and t.get("name"):
                 trends.append(
                     {
                         "name": t.get("name", ""),
                         "summary": t.get("summary", ""),
                         "impact": t.get("impact", "medium"),
+                        "sector": t.get("sector", "other"),
                     }
                 )
         news_summaries = {n.get("title"): n.get("summary") for n in parsed.get("news", []) if isinstance(n, dict)}
@@ -127,16 +197,29 @@ async def trend_analysis(state: ResearchState) -> dict:
                 }
             )
         news = enriched_news or news
+        snapshot = (parsed.get("snapshot") or "").strip()
     except Exception as e:
         logger.warning("trend_analysis_llm_failed", error=str(e))
         trends = [
-            {"name": "AI agent platforms", "summary": "Autonomous ops tooling accelerating.", "impact": "high"},
-            {"name": "Durable workflows", "summary": "Temporal-style orchestration adoption growing.", "impact": "medium"},
+            {
+                "name": "AI agent platforms",
+                "summary": "Autonomous ops tooling accelerating.",
+                "impact": "high",
+                "sector": "ai",
+            },
+            {
+                "name": "Durable workflows",
+                "summary": "Temporal-style orchestration adoption growing.",
+                "impact": "medium",
+                "sector": "cloud",
+            },
         ]
+        snapshot = ""
 
     return {
         "news_items": news,
         "trends": trends,
+        "analysis_snapshot": snapshot,
         "messages": [{"agent": "trend_analysis", "trend_count": len(trends)}],
     }
 
@@ -177,8 +260,9 @@ async def strategy_agent(state: ResearchState) -> dict:
                     "role": "user",
                     "content": (
                         f"Query: {state.get('query')}\n"
+                        f"Executive snapshot (from trend model): {state.get('analysis_snapshot', '')}\n"
                         f"Trends: {json.dumps(state.get('trends', []))}\n"
-                        f"News: {json.dumps(state.get('news_items', [])[:5])}\n"
+                        f"News: {json.dumps(state.get('news_items', [])[:8])}\n"
                         f"Competitors: {json.dumps(state.get('competitor_intel', []))}"
                     ),
                 },
