@@ -1,17 +1,29 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Boxes,
+  CheckCircle2,
+  Cloud,
+  Cpu,
+  Github,
+  MessageSquare,
+  Search,
+  Wrench,
+  XCircle,
+} from "lucide-react";
 import { IncidentAgentPipeline } from "@/components/incident-agent-pipeline";
 import { ApprovalButton } from "@/components/approval-button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { MarkdownReport } from "@/components/markdown-report";
 import {
   fetchIncident,
   fetchIncidentTrace,
   type Incident,
   type IncidentTrace,
 } from "@/lib/api";
-import { useStreamingText } from "@/hooks/use-streaming-text";
 import { cn } from "@/lib/utils";
 
 const TERMINAL = new Set(["resolved", "cancelled", "failed"]);
@@ -68,38 +80,55 @@ function statusNarrative(status: string): string {
     executing: "Executing approved remediation actions.",
     validating: "Validating that the service recovered.",
     reporting: "Generating incident report.",
-    resolved: "Incident resolved. See findings and root cause below.",
+    resolved: "Incident resolved. See findings and structured reports below.",
     cancelled: "Incident was cancelled or approval was rejected.",
     failed: "Workflow failed. Check worker logs and Temporal UI.",
   };
   return map[status] ?? `Status: ${status}`;
 }
 
-function StreamingInsight({
-  text,
-  streamingKey,
-  className,
-}: {
-  text: string | null | undefined;
-  streamingKey: string;
-  className?: string;
-}) {
-  const full = text ?? "";
-  const displayed = useStreamingText(full, streamingKey);
-  const incomplete = displayed.length < full.length;
-  return (
-    <div className={cn("relative", className)}>
-      <p className="whitespace-pre-wrap text-sm leading-relaxed">
-        {displayed}
-        {incomplete && (
-          <span
-            className="ml-0.5 inline-block h-3.5 w-1 translate-y-0.5 animate-pulse rounded-sm bg-primary align-middle"
-            aria-hidden
-          />
-        )}
-      </p>
-    </div>
-  );
+function evidenceLooksOk(line: string): boolean {
+  const l = line.toLowerCase();
+  if (l.includes("failed") || l.includes("failure")) return false;
+  return l.includes(": ok") || /\bok\s*\(/.test(l);
+}
+
+function iconForEvidence(line: string): LucideIcon {
+  const l = line.toLowerCase();
+  if (l.includes("kubernetes")) return Boxes;
+  if (l.includes("github")) return Github;
+  if (l.includes("cloud.") || l.includes("metrics")) return Cloud;
+  if (l.includes("search.")) return Search;
+  if (l.includes("slack")) return MessageSquare;
+  return Cpu;
+}
+
+function iconForTool(toolKey?: string): LucideIcon {
+  const t = (toolKey ?? "").toLowerCase();
+  if (t.startsWith("kubernetes")) return Boxes;
+  if (t.startsWith("github")) return Github;
+  if (t.startsWith("cloud")) return Cloud;
+  if (t.startsWith("search")) return Search;
+  if (t.startsWith("slack")) return MessageSquare;
+  if (t.startsWith("invoke") || t.includes("scale")) return Wrench;
+  return Cpu;
+}
+
+function RemediationContent({ text }: { text: string }) {
+  const t = text.trim();
+  if ((t.startsWith("[") || t.startsWith("{")) && t.length > 2) {
+    try {
+      const parsed = JSON.parse(t);
+      return (
+        <pre className="overflow-x-auto rounded-xl border border-border/70 bg-muted/40 p-4 font-mono text-xs leading-relaxed text-foreground dark:bg-muted/20">
+          {JSON.stringify(parsed, null, 2)}
+        </pre>
+      );
+    } catch {
+      /* markdown fallback */
+    }
+  }
+  return <MarkdownReport content={text} />;
 }
 
 function formatCommits(data: unknown): string[] {
@@ -179,12 +208,12 @@ export function IncidentInvestigationView({
 
   return (
     <div className="space-y-8 pb-12">
-      <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-card via-card to-primary/[0.07] p-6 shadow-[0_20px_60px_-30px_hsl(217_91%_60%_/_0.35)]">
+      <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-card via-card to-primary/[0.07] p-6 shadow-[0_20px_60px_-30px_hsl(var(--primary)/0.35)]">
         <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-primary/90">
-              Incident investigation
+              Incident investigation · AegisOps
             </p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">{incident.title}</h1>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -222,41 +251,37 @@ export function IncidentInvestigationView({
       </div>
 
       <Card className="border-primary/25 bg-primary/[0.04] transition-shadow duration-300 hover:shadow-lg hover:shadow-primary/5">
-        <h2 className="mb-2 text-lg font-semibold">How incident intelligence works</h2>
+        <h2 className="mb-2 text-lg font-semibold">How this works</h2>
         <p className="text-sm leading-relaxed text-muted-foreground">
           This module does <strong className="text-foreground">not</strong> scan your repo continuously.
-          A <strong className="text-foreground">monitoring alert</strong> starts an incident; then agents
-          investigate using GitHub, Kubernetes, metrics, and search. Results appear in the sections below.
+          A <strong className="text-foreground">monitoring alert</strong> starts an incident; agents investigate via MCP
+          (GitHub, Kubernetes, metrics, search). Evidence below is normalized into readable artifacts — conclusions render as rich Markdown reports for demos.
         </p>
       </Card>
 
       {(incident.last_error || trace.last_error) && (
         <Card className="border-destructive/50 bg-destructive/10">
           <h2 className="mb-2 text-lg font-semibold text-destructive">Investigation error</h2>
-          <p className="text-sm text-destructive/90">
-            {incident.last_error || trace.last_error}
-          </p>
+          <p className="text-sm text-destructive/90">{incident.last_error || trace.last_error}</p>
           <p className="mt-2 text-xs text-muted-foreground">
-            Common cause: LLM request timed out (Temporal heartbeat). Restart the worker after
-            updating; evidence below may still show GitHub/MCP results gathered before the failure.
+            Common cause: LLM request timed out (Temporal heartbeat). Restart the worker after updating; evidence below may still show MCP results gathered before the failure.
           </p>
         </Card>
       )}
 
       <Card className="transition-colors duration-300 hover:border-border">
         <h2 className="mb-2 text-lg font-semibold">What happened</h2>
-        <p className="text-sm leading-relaxed transition-all duration-500">
-          {statusNarrative(trace.status)}
-        </p>
+        <p className="text-sm leading-relaxed transition-all duration-500">{statusNarrative(trace.status)}</p>
         {failedTools.length > 0 && (
-          <div className="mt-3 rounded border border-destructive/40 bg-destructive/10 p-3">
-            <p className="text-sm font-medium text-destructive">
-              {failedTools.length} tool call(s) failed
-            </p>
-            <ul className="mt-1 list-inside list-disc text-sm text-destructive/90">
+          <div className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 p-4">
+            <p className="text-sm font-medium text-destructive">{failedTools.length} tool call(s) failed</p>
+            <ul className="mt-2 space-y-1.5 text-sm text-destructive/90">
               {failedTools.map((t) => (
-                <li key={t.tool}>
-                  {t.tool}: {t.error ?? "unknown error"}
+                <li key={t.tool} className="flex gap-2 font-mono text-xs">
+                  <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    {t.tool}: {t.error ?? "unknown error"}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -265,58 +290,94 @@ export function IncidentInvestigationView({
       </Card>
 
       {findings.length > 0 && (
-        <Card>
-          <h2 className="mb-3 text-lg font-semibold">What we checked (evidence)</h2>
-          <ul className="space-y-2">
-            {findings.map((f) => (
-              <li
-                key={f}
-                className={`rounded border px-3 py-2 font-mono text-xs ${
-                  f.includes(": ok") || f.endsWith("ok")
-                    ? "border-border text-muted-foreground"
-                    : "border-destructive/40 text-destructive"
-                }`}
-              >
-                {f}
-              </li>
-            ))}
+        <Card className="border-border/65">
+          <h2 className="mb-1 text-lg font-semibold">What we checked (evidence)</h2>
+          <p className="mb-5 text-sm text-muted-foreground">
+            Parsed investigator checkpoints — passes calm styling; failures highlight in destructive violet/red cues with MCP/tool glyphs.
+          </p>
+          <ul className="space-y-3">
+            {findings.map((f) => {
+              const ok = evidenceLooksOk(f);
+              const Icon = iconForEvidence(f);
+              return (
+                <li
+                  key={f}
+                  className={cn(
+                    "flex gap-4 rounded-2xl border px-4 py-4 transition-colors sm:items-start",
+                    ok
+                      ? "border-border/70 bg-muted/15 hover:border-primary/20 dark:bg-muted/10"
+                      : "border-destructive/35 bg-destructive/[0.06]"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border",
+                      ok
+                        ? "border-success/30 bg-success/10 text-success"
+                        : "border-destructive/35 bg-destructive/10 text-destructive"
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={ok ? "resolved" : "critical"}>{ok ? "Pass" : "Fail"}</Badge>
+                      {!ok && <span className="text-[11px] font-medium uppercase text-destructive/90">Needs attention</span>}
+                    </div>
+                    <p className="mt-2 font-mono text-[13px] leading-relaxed text-foreground">{f}</p>
+                  </div>
+                  <div className="hidden shrink-0 sm:block">
+                    {ok ? (
+                      <CheckCircle2 className="h-6 w-6 text-success/90" />
+                    ) : (
+                      <XCircle className="h-6 w-6 text-destructive/90" />
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </Card>
       )}
 
       {allTools.length > 0 && (
-        <Card>
-          <h2 className="mb-3 text-lg font-semibold">Tools run during investigation</h2>
-          <div className="space-y-2">
-            {allTools.map((r, i) => (
-              <div
-                key={`${r.tool}-${i}`}
-                className="flex flex-wrap items-center justify-between gap-2 rounded border border-border px-3 py-2"
-              >
-                <span className="font-mono text-xs">{r.tool}</span>
-                <Badge variant={r.success ? "resolved" : "critical"}>
-                  {r.success ? "ok" : "failed"}
-                </Badge>
-              </div>
-            ))}
+        <Card className="border-border/65">
+          <h2 className="mb-1 text-lg font-semibold">Tools run during investigation</h2>
+          <p className="mb-5 text-sm text-muted-foreground">Structured executor ledger mapped one row per MCP/tool invocation.</p>
+          <div className="space-y-3">
+            {allTools.map((r, i) => {
+              const Icon = iconForTool(r.tool);
+              return (
+                <div
+                  key={`${r.tool}-${i}`}
+                  className="flex flex-col gap-3 rounded-2xl border border-border/65 bg-muted/10 px-4 py-4 sm:flex-row sm:items-center sm:justify-between dark:bg-muted/5"
+                >
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <span className="break-all font-mono text-xs leading-snug text-foreground">{r.tool}</span>
+                  </div>
+                  <Badge variant={r.success ? "resolved" : "critical"}>{r.success ? "ok" : "failed"}</Badge>
+                </div>
+              );
+            })}
           </div>
         </Card>
       )}
 
-      <Card>
+      <Card className="border-border/65">
         <h2 className="mb-3 text-lg font-semibold">GitHub repository check</h2>
         <p className="text-sm text-muted-foreground">
           Repo:{" "}
-          <span className="font-mono text-foreground">
-            {trace.github_repo ?? "not configured"}
-          </span>
+          <span className="font-mono text-foreground">{trace.github_repo ?? "not configured"}</span>
           {!trace.github_configured && (
             <span className="ml-2 text-warning"> — GITHUB_TOKEN missing in .env</span>
           )}
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
-          Runs during <strong className="text-foreground">root_cause_analysis</strong> (not on every
-          commit). Push a commit, then start a new incident to see it in recent commits.
+          Runs during <strong className="text-foreground">root_cause_analysis</strong> (not on every commit). Push a commit,
+          then start a new incident to see it in recent commits.
         </p>
         {githubTools.length === 0 && isActive(trace.status) && (
           <p className="mt-3 text-sm text-muted-foreground">
@@ -325,26 +386,30 @@ export function IncidentInvestigationView({
         )}
         {githubTools.length === 0 && !isActive(trace.status) && (
           <p className="mt-3 text-sm text-muted-foreground">
-            No GitHub tool results stored. Workflow may have failed before RCA, or this incident
-            predates evidence logging.
+            No GitHub tool results stored. Workflow may have failed before RCA, or this incident predates evidence logging.
           </p>
         )}
         <div className="mt-4 space-y-3">
           {githubTools.map((r, i) => {
             const commits = r.tool === "github.list_commits" ? formatCommits(r.data) : [];
             return (
-              <div key={`${r.tool}-${i}`} className="rounded border border-border p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-sm">{r.tool}</span>
-                  <Badge variant={r.success ? "resolved" : "critical"}>
-                    {r.success ? "ok" : "failed"}
-                  </Badge>
-                </div>
-                {r.error && (
-                  <p className="mt-2 text-sm text-destructive">Error: {r.error}</p>
+              <div
+                key={`${r.tool}-${i}`}
+                className={cn(
+                  "rounded-2xl border p-4",
+                  r.success ? "border-border/70 bg-muted/10 dark:bg-muted/5" : "border-destructive/35 bg-destructive/[0.06]"
                 )}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 font-mono text-sm">
+                    <Github className="h-4 w-4 shrink-0 text-primary" />
+                    {r.tool}
+                  </div>
+                  <Badge variant={r.success ? "resolved" : "critical"}>{r.success ? "ok" : "failed"}</Badge>
+                </div>
+                {r.error && <p className="mt-2 text-sm text-destructive">Error: {r.error}</p>}
                 {commits.length > 0 && (
-                  <ul className="mt-2 list-inside list-disc text-sm text-muted-foreground">
+                  <ul className="mt-3 space-y-1 border-t border-border/50 pt-3 font-mono text-xs text-muted-foreground">
                     {commits.map((c) => (
                       <li key={c}>{c}</li>
                     ))}
@@ -359,47 +424,64 @@ export function IncidentInvestigationView({
             );
           })}
         </div>
-        {findings.filter((f) => f.includes("github.")).length > 0 && (
-          <ul className="mt-3 list-inside list-disc text-xs text-muted-foreground">
-            {findings.filter((f) => f.includes("github.")).map((f) => (
-              <li key={f}>{f}</li>
-            ))}
-          </ul>
-        )}
       </Card>
 
       {trace.temporal_workflow_id && (
-        <Card>
-          <p className="text-sm text-muted-foreground">Temporal Workflow</p>
-          <p className="font-mono text-sm">{trace.temporal_workflow_id}</p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+        <Card className="border-primary/25 bg-primary/[0.04]">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary">Temporal Workflow</p>
+              <p className="mt-2 font-mono text-sm text-foreground">{trace.temporal_workflow_id}</p>
+            </div>
+            <a
+              href="http://localhost:8080"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:opacity-90"
+            >
               Open Temporal UI
-            </a>{" "}
-            and search this id.
-          </p>
+            </a>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">Paste or search this workflow id in Temporal Web UI.</p>
         </Card>
       )}
+
       {incident.root_cause && (
-        <Card>
-          <h2 className="mb-2 text-lg font-semibold">Root cause (conclusion)</h2>
-          <StreamingInsight text={incident.root_cause} streamingKey={`${incidentId}-rc`} />
+        <Card className="border-border/65 overflow-hidden">
+          <div className="border-b border-border/60 bg-muted/20 px-6 py-3 dark:bg-muted/10">
+            <h2 className="text-lg font-semibold tracking-tight">Root cause (conclusion)</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Rendered Markdown · headings, tables, and citations preserved.</p>
+          </div>
+          <div className="px-6 pb-6 pt-5">
+            <MarkdownReport content={incident.root_cause} />
+          </div>
         </Card>
       )}
+
       {incident.incident_report && (
-        <Card>
-          <h2 className="mb-2 text-lg font-semibold">Incident report</h2>
-          <StreamingInsight text={incident.incident_report} streamingKey={`${incidentId}-report`} />
+        <Card className="border-border/65 overflow-hidden">
+          <div className="border-b border-border/60 bg-muted/20 px-6 py-3 dark:bg-muted/10">
+            <h2 className="text-lg font-semibold tracking-tight">Incident report</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Executive-ready Markdown narrative generated post-incident.</p>
+          </div>
+          <div className="px-6 pb-6 pt-5">
+            <MarkdownReport content={incident.incident_report} />
+          </div>
         </Card>
       )}
+
       {incident.remediation_summary && (
-        <Card>
-          <h2 className="mb-2 text-lg font-semibold">Remediation</h2>
-          <p className="whitespace-pre-wrap font-mono text-xs text-muted-foreground">
-            {incident.remediation_summary}
-          </p>
+        <Card className="border-border/65 overflow-hidden">
+          <div className="border-b border-border/60 bg-muted/20 px-6 py-3 dark:bg-muted/10">
+            <h2 className="text-lg font-semibold tracking-tight">Remediation</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Structured payloads prettified automatically.</p>
+          </div>
+          <div className="px-6 pb-6 pt-5">
+            <RemediationContent text={incident.remediation_summary} />
+          </div>
         </Card>
       )}
+
       <Card>
         <h2 className="mb-4 text-lg font-semibold">Execution Timeline</h2>
         {trace.timeline.length === 0 ? (
@@ -420,7 +502,7 @@ export function IncidentInvestigationView({
                     <div
                       className={`h-3 w-3 rounded-full transition-all duration-300 ${
                         isLatest && isActive(trace.status)
-                          ? "scale-110 animate-pulse bg-primary shadow-[0_0_12px_hsl(217_91%_60%_/_0.6)]"
+                          ? "scale-110 animate-pulse bg-primary shadow-[0_0_12px_hsl(var(--primary)/0.6)]"
                           : "bg-primary"
                       }`}
                     />
@@ -440,25 +522,33 @@ export function IncidentInvestigationView({
           </div>
         )}
       </Card>
+
       {trace.workflow_steps.length > 0 && (
         <Card>
-          <h2 className="mb-4 text-lg font-semibold">Workflow Steps</h2>
-          <div className="space-y-3">
+          <h2 className="mb-4 text-lg font-semibold">Workflow steps</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
             {trace.workflow_steps.map((step, i) => (
-              <div key={i} className="rounded border border-border p-3">
-                <div className="flex justify-between">
-                  <span className="font-medium">{step.step}</span>
-                  <Badge>{step.status}</Badge>
-                </div>
+              <div
+                key={i}
+                className="flex items-center justify-between gap-3 rounded-xl border border-border/65 bg-muted/15 px-4 py-3 dark:bg-muted/10"
+              >
+                <span className="font-medium capitalize">{step.step.replace(/_/g, " ")}</span>
+                <Badge variant={step.status === "completed" ? "resolved" : "default"}>{step.status}</Badge>
               </div>
             ))}
           </div>
         </Card>
       )}
+
       {investigationRootCause && !incident.root_cause && (
-        <Card>
-          <h2 className="mb-2 text-lg font-semibold">Investigation output</h2>
-          <StreamingInsight text={investigationRootCause} streamingKey={`${incidentId}-inv-rc`} />
+        <Card className="border-border/65 overflow-hidden">
+          <div className="border-b border-border/60 bg-muted/20 px-6 py-3 dark:bg-muted/10">
+            <h2 className="mb-0 text-lg font-semibold">Investigation output</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Interim RCA Markdown synced from the investigation activity.</p>
+          </div>
+          <div className="px-6 pb-6 pt-5">
+            <MarkdownReport content={investigationRootCause} />
+          </div>
         </Card>
       )}
     </div>

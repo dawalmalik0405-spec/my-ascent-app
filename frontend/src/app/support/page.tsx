@@ -13,13 +13,14 @@ export default async function SupportPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-end justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold">Support Intelligence</h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary">Support</p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Support Intelligence</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
             Tickets created by customers through the{" "}
-            <strong>Northwind demo store</strong> appear below after Ascent processes them (classification,
+            <strong>Northwind demo store</strong> appear below after AegisOps processes them (classification,
             KB retrieval, AI draft reply, optional email).
           </p>
         </div>
@@ -33,7 +34,7 @@ export default async function SupportPage() {
         </a>
       </div>
 
-      <Card>
+      <Card className="border-border/60">
         <h2 className="mb-4 text-lg font-semibold">Recent tickets</h2>
         {tickets.length === 0 ? (
           <p className="text-sm text-muted-foreground">

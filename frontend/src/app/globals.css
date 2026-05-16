@@ -2,12 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-background text-foreground antialiased;
-  background-image:
-    radial-gradient(ellipse 120% 80% at 50% -40%, hsl(217 91% 60% / 0.14), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 100% 0%, hsl(142 76% 36% / 0.06), transparent 45%);
-  background-attachment: fixed;
+:root {
+  --background: 280 35% 99%;
+  --foreground: 280 35% 8%;
+  --card: 0 0% 100%;
+  --card-foreground: 280 35% 8%;
+  --muted: 275 28% 94%;
+  --muted-foreground: 275 12% 38%;
+  --border: 275 22% 88%;
+  --primary: 272 72% 48%;
+  --primary-foreground: 0 0% 100%;
+  --destructive: 0 72% 48%;
+  --success: 152 62% 36%;
+  --warning: 38 92% 46%;
+  --radius-lg: 1rem;
+}
+
+.dark {
+  --background: 285 32% 4%;
+  --foreground: 275 25% 96%;
+  --card: 285 26% 7%;
+  --card-foreground: 275 25% 96%;
+  --muted: 285 22% 12%;
+  --muted-foreground: 275 15% 64%;
+  --border: 285 18% 17%;
+  --primary: 272 88% 68%;
+  --primary-foreground: 285 32% 5%;
+  --destructive: 0 72% 56%;
+  --success: 152 62% 45%;
+  --warning: 38 92% 52%;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(ellipse 130% 90% at 50% -45%, hsl(var(--primary) / 0.18), transparent 52%),
+      radial-gradient(ellipse 65% 45% at 100% 0%, hsl(var(--primary) / 0.08), transparent 42%),
+      radial-gradient(ellipse 55% 40% at 0% 100%, hsl(292 75% 55% / 0.06), transparent 45%);
+    background-attachment: fixed;
+  }
+
+  .dark body {
+    background-image:
+      radial-gradient(ellipse 120% 80% at 50% -35%, hsl(var(--primary) / 0.22), transparent 50%),
+      radial-gradient(ellipse 55% 50% at 110% 5%, hsl(292 70% 40% / 0.12), transparent 42%),
+      radial-gradient(ellipse 45% 35% at -10% 90%, hsl(var(--primary) / 0.06), transparent 40%);
+  }
 }
 
 .incident-node-active {
@@ -18,18 +59,29 @@ body {
   0%,
   100% {
     box-shadow:
-      0 0 28px -10px hsl(217 91% 60% / 0.35),
-      inset 0 1px 0 hsl(217 91% 60% / 0.08);
+      0 0 28px -10px hsl(var(--primary) / 0.38),
+      inset 0 1px 0 hsl(var(--primary) / 0.12);
   }
   50% {
     box-shadow:
-      0 0 36px -8px hsl(217 91% 60% / 0.55),
-      inset 0 1px 0 hsl(217 91% 60% / 0.12);
+      0 0 40px -6px hsl(var(--primary) / 0.55),
+      inset 0 1px 0 hsl(var(--primary) / 0.16);
   }
 }
 
 .feed-line-enter {
   animation: feed-line-enter 0.5s ease-out both;
+}
+
+@keyframes feed-line-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes timeline-row-enter {
@@ -45,4 +97,86 @@ body {
 
 .timeline-row-enter {
   animation: timeline-row-enter 0.45s ease-out both;
+}
+
+/* Landing — layered 3D-style composition (CSS only) */
+.hero-3d-scene {
+  perspective: 1400px;
+  perspective-origin: 50% 40%;
+}
+
+.hero-3d-pivot {
+  transform-style: preserve-3d;
+  animation: hero-3d-orbit 22s ease-in-out infinite;
+}
+
+@keyframes hero-3d-orbit {
+  0%,
+  100% {
+    transform: rotateX(14deg) rotateY(-22deg) rotateZ(0deg);
+  }
+  33% {
+    transform: rotateX(10deg) rotateY(12deg) rotateZ(2deg);
+  }
+  66% {
+    transform: rotateX(-6deg) rotateY(28deg) rotateZ(-3deg);
+  }
+}
+
+.hero-float-z {
+  animation: hero-float-z 6s ease-in-out infinite;
+}
+
+@keyframes hero-float-z {
+  0%,
+  100% {
+    transform: translateZ(0px) translateY(0);
+  }
+  50% {
+    transform: translateZ(28px) translateY(-10px);
+  }
+}
+
+.hero-ring-spin {
+  animation: hero-ring-spin 14s linear infinite;
+}
+
+@keyframes hero-ring-spin {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(360deg);
+  }
+}
+
+.hero-glow-pulse {
+  animation: hero-glow-pulse 4s ease-in-out infinite;
+}
+
+@keyframes hero-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes markdown-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.markdown-report {
+  word-break: break-word;
 }

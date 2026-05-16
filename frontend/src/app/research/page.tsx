@@ -12,10 +12,11 @@ export default async function ResearchPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold">Tech industry intelligence</h1>
-        <p className="mt-1 max-w-3xl text-muted-foreground">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Research</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Tech industry intelligence</h1>
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">
           Multi-topic scans across AI/agents, cloud, semiconductors, security, and developer platforms — merged into a
           live news feed, trend radar, executive snapshot, and strategic brief. Data refreshes automatically and after each
           manual scan or question.

@@ -1,14 +1,15 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { ResearchLiveProvider } from "@/context/research-live-context";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const isCustomerPortal = pathname.startsWith("/complain");
+  const isBareChrome = pathname.startsWith("/complain") || pathname === "/";
 
-  if (isCustomerPortal) {
+  if (isBareChrome) {
     return <>{children}</>;
   }
 
@@ -23,4 +24,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-

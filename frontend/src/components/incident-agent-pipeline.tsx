@@ -79,9 +79,9 @@ function AgentNode({
       className={cn(
         "relative flex min-w-[92px] flex-1 flex-col items-center gap-2 rounded-xl border px-2.5 py-3 text-center transition-all duration-500",
         state === "done" &&
-          "border-success/35 bg-success/5 shadow-[0_0_24px_-8px_hsl(142_76%_36%_/_0.35)]",
+          "border-success/35 bg-success/5 shadow-[0_0_24px_-8px_hsl(var(--success)/0.35)]",
         state === "active" &&
-          "border-primary/60 bg-primary/10 shadow-[0_0_32px_-6px_hsl(217_91%_60%_/_0.45)] incident-node-active",
+          "border-primary/60 bg-primary/10 shadow-[0_0_32px_-6px_hsl(var(--primary)/0.45)] incident-node-active",
         state === "pending" && "border-border/80 bg-card/40 opacity-55"
       )}
     >
@@ -140,7 +140,7 @@ function HumanGate({ live }: { live: boolean }) {
       className={cn(
         "flex min-w-[120px] max-w-[160px] shrink-0 flex-col items-center justify-center rounded-xl border px-2 py-3 text-center transition-all duration-500",
         live
-          ? "border-warning/50 bg-warning/10 text-warning shadow-[0_0_28px_-8px_hsl(38_92%_50%_/_0.35)]"
+          ? "border-warning/50 bg-warning/10 text-warning shadow-[0_0_28px_-8px_hsl(var(--warning)/0.35)]"
           : "border-dashed border-border/70 bg-muted/10 text-muted-foreground"
       )}
     >
@@ -209,7 +209,7 @@ export function IncidentAgentPipeline({
           <Bot className={cn("h-3.5 w-3.5", active && "animate-pulse text-primary")} />
           <span>
             {active
-              ? "Agents run in sequence — this board updates as each step completes"
+              ? "AegisOps agents run in sequence — this board updates as each step completes"
               : "Workflow finished — timeline below is the full record"}
           </span>
         </div>
@@ -257,7 +257,7 @@ function LiveTimelineRibbon({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/60 bg-[hsl(222_47%_7%)]">
+    <div className="overflow-hidden rounded-xl border border-border/60 bg-muted/35 dark:bg-muted/25">
       <div className="flex items-center gap-2 border-b border-border/50 px-4 py-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
         <span className={cn("h-2 w-2 rounded-full bg-primary", active && "animate-pulse")} />
         Live trace

@@ -17,16 +17,25 @@ export default async function ToolsPage() {
   }, {});
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">MCP Tool Ecosystem</h1>
-      <p className="text-muted-foreground">{tools.length} tools across {Object.keys(byServer).length} servers</p>
+    <div className="space-y-8">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Integrations</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">MCP tool ecosystem</h1>
+        <p className="mt-3 text-muted-foreground">
+          Discover MCP-backed capabilities surfaced to autonomous agents across incidents and research workflows.
+        </p>
+        <p className="mt-2 text-sm font-medium text-foreground">
+          {tools.length} tools across {Object.keys(byServer).length} servers
+        </p>
+      </div>
+
       {Object.entries(byServer).map(([server, serverTools]) => (
-        <Card key={server}>
+        <Card key={server} className="border-border/60">
           <h2 className="mb-4 text-lg font-semibold capitalize">{server}</h2>
           <div className="grid gap-2 md:grid-cols-2">
             {serverTools.map((t) => (
-              <div key={t.key} className="rounded border border-border p-3">
-                <p className="font-mono text-sm text-primary">{t.name}</p>
+              <div key={t.key} className="rounded-xl border border-border/70 bg-muted/10 p-3 dark:bg-muted/5">
+                <p className="font-mono text-sm font-medium text-primary">{t.name}</p>
                 <p className="mt-1 text-sm text-muted-foreground">{t.description}</p>
               </div>
             ))}
