@@ -99,6 +99,71 @@
   animation: timeline-row-enter 0.45s ease-out both;
 }
 
+/* Landing — front desk reference stack (Temporal · LangGraph · Qdrant · MCP) */
+.landing-frontdesk-stack {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg, 1rem);
+  border: 1px solid hsl(var(--border) / 0.55);
+  background: hsl(var(--card) / 0.65);
+}
+
+.landing-frontdesk-stack::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(hsl(var(--primary) / 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--primary) / 0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(ellipse 85% 100% at 100% 50%, black 20%, transparent 70%);
+  pointer-events: none;
+}
+
+.dark .landing-frontdesk-stack {
+  background: hsl(var(--card) / 0.45);
+}
+
+.dark .landing-frontdesk-stack::before {
+  opacity: 0.85;
+}
+
+/* Landing — console preview panel */
+.landing-console-preview {
+  background-image:
+    linear-gradient(hsl(var(--border) / 0.35) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.35) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: center top;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-3d-pivot,
+  .hero-float-z,
+  .hero-ring-spin,
+  .hero-glow-pulse,
+  .landing-hero-shard,
+  .brand-mark-svg-glow {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .brand-mark-svg-glow {
+    animation: brand-mark-core-glow 6s ease-in-out infinite;
+  }
+}
+
+@keyframes brand-mark-core-glow {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 /* Landing — layered 3D-style composition (CSS only) */
 .hero-3d-scene {
   perspective: 1400px;
