@@ -10,15 +10,32 @@ const config: Config = {
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
       },
       colors: {
-        border: "hsl(217 33% 17%)",
-        background: "hsl(222 47% 6%)",
-        foreground: "hsl(210 40% 98%)",
-        card: "hsl(222 47% 9%)",
-        primary: { DEFAULT: "hsl(217 91% 60%)", foreground: "hsl(222 47% 6%)" },
-        muted: { DEFAULT: "hsl(217 33% 17%)", foreground: "hsl(215 20% 65%)" },
-        destructive: "hsl(0 84% 60%)",
-        success: "hsl(142 76% 36%)",
-        warning: "hsl(38 92% 50%)",
+        border: "hsl(var(--border))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        destructive: "hsl(var(--destructive))",
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
+      },
+      borderRadius: {
+        xl: "calc(var(--radius-lg) + 4px)",
+        "2xl": "calc(var(--radius-lg) + 8px)",
+      },
+      boxShadow: {
+        glow: "0 0 60px -15px hsl(var(--primary) / 0.45)",
+        card: "0 25px 50px -25px hsl(var(--foreground) / 0.12)",
       },
       keyframes: {
         "agent-icon-nudge": {
