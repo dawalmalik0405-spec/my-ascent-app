@@ -11,7 +11,7 @@
 | **Incidents** | Alert ingestion, correlation with semantic memory, LangGraph investigations, MCP-backed evidence, HITL approvals, Temporal workflows |
 | **Support** | Ticket and complaint intake, AI-assisted handling, correlation with incidents (demo storefront posts complaints to the API) |
 | **Research** | Industry scans, dashboard analytics (charts/KPIs), analyst-style briefings |
-| **Frontend** | Next.js operations console, marketing landing (reference stack strip, 3D hero), Markdown-rich reports where applicable |
+| **Frontend** | Next.js operations console, marketing landing (reference stack strip, 3D hero), SVG shield mark with agent-style robot glyph, Markdown-rich reports where applicable |
 | **Demo apps** | Optional ecommerce-style app to trigger incidents and support flows end-to-end |
 
 ---
@@ -43,7 +43,7 @@ Deeper design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · MCP notes: [docs/
 backend/                  # FastAPI app, Temporal worker, LangGraph graphs, DB models
   src/db/schema.sql       # PostgreSQL DDL (used by Docker Postgres init)
   config/mcp_servers.json # MCP server definitions
-frontend/                 # Next.js dashboard + landing
+frontend/                 # Next.js dashboard + landing + brand components
 demo-apps/
   incident-demo-webapp/   # Northwind-style demo (checkout metrics → incidents; /support → API)
 mcp-servers/              # Isolated MCP tool servers (as configured)
@@ -53,6 +53,7 @@ scripts/
   stop.ps1                # Stop Docker services started for dev
 docs/                     # Architecture and setup guides
 docker-compose.yml        # Full stack (infra + optional api/worker/frontend/grafana/...)
+.gitignore                # Ignores .env, build artifacts, .venv — keeps .env.example tracked
 ```
 
 Kubernetes skeleton: `infrastructure/k8s/deployment.yaml`.
@@ -72,7 +73,7 @@ Kubernetes skeleton: `infrastructure/k8s/deployment.yaml`.
 From the repository root:
 
 ```powershell
-# 1) Environment
+# 1) Environment — commit only .env.example; keep real secrets in .env (gitignored)
 copy .env.example .env
 # Edit .env — at minimum LLM keys unless using mocks (see below).
 
@@ -125,6 +126,17 @@ npm install
 npm run dev
 ```
 
+### Production frontend build (local check)
+
+```powershell
+cd frontend
+npm install
+npm run build
+npm run start
+```
+
+Ensure `NEXT_PUBLIC_API_URL` (and optional `NEXT_PUBLIC_TEMPORAL_UI_URL`) match how browsers reach your API before building.
+
 ### Full Docker Compose (API + worker + frontend + extras)
 
 ```bash
@@ -139,7 +151,7 @@ See service list in `docker-compose.yml` (Prometheus, Grafana, Alertmanager, dem
 
 ## Environment configuration
 
-Copy `.env.example` to `.env`. Important groups:
+Copy `.env.example` to **`.env`** (your local file is **not** committed; **`.env.example`** stays in git as the template).
 
 | Group | Purpose |
 |-------|---------|
@@ -231,15 +243,29 @@ Details and timings are commented in `.env.example`.
 
 ---
 
-## Deployment (short)
+## Deployment
 
-This stack expects **long-running** API + **worker** plus **Postgres**, **Redis**, **Qdrant**, and **Temporal**. Common patterns:
+This stack expects **long-running** API + **worker** plus **Postgres**, **Redis**, **Qdrant**, and **Temporal**.
+
+### Common patterns
 
 - **Docker Compose** on a VM (`docker-compose.yml`; tighten secrets and remove dev-only mounts).  
-- **PaaS** (e.g. Render, Railway, Fly): managed Postgres/Redis; **Temporal Cloud** + **Qdrant Cloud** (or self-hosted equivalents); separate services for API, worker, and Next.js build with correct **`NEXT_PUBLIC_*`**.  
-- **GCP / AWS / Kubernetes**: Cloud Run or GKE/EKS-style deployments; see `infrastructure/k8s/deployment.yaml` as a starting skeleton.
+- **PaaS** (Render, Railway, Fly): managed Postgres/Redis; **Temporal Cloud** + **Qdrant Cloud** (or self-hosted); separate services for API, worker, and Next.js with correct **`NEXT_PUBLIC_*`** at image build time.  
+- **Kubernetes**: see `infrastructure/k8s/deployment.yaml` as a starting skeleton.
 
-Production checklist: strong `APP_SECRET_KEY`, real DB credentials, TLS at the edge, CORS policy review, and **`postgresql+asyncpg://`** scheme for `DATABASE_URL`.
+### Google Cloud (outline)
+
+Typical layout:
+
+1. Enable **Artifact Registry**, **Cloud Run**, **Cloud SQL Admin**, **Secret Manager**, **Serverless VPC Access** (for **Memorystore** / private DB).  
+2. **Cloud SQL (PostgreSQL)** + apply `backend/src/db/schema.sql`.  
+3. **Memorystore (Redis)** in the same region; attach a **VPC connector** to Cloud Run services that need it.  
+4. Use **Temporal Cloud** and **Qdrant Cloud** (or run those on GKE/GCE if you operate them yourself).  
+5. Build/push images (`backend/Dockerfile`, `frontend/Dockerfile`) with **`NEXT_PUBLIC_API_URL`** passed into the frontend build.  
+6. Deploy **Cloud Run** service for FastAPI (`uvicorn` on **`$PORT`**), second Cloud Run service for **`python -m src.workers.main`** with **minimum instances ≥ 1** and CPU always allocated, third for Next.js (or static hosting + CDN).  
+7. Store secrets in **Secret Manager**; use **`postgresql+asyncpg://`** for `DATABASE_URL`.
+
+Production checklist: strong `APP_SECRET_KEY`, real DB credentials, TLS at the edge, review **CORS**, and never commit `.env`.
 
 ---
 
