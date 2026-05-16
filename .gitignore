@@ -1,3 +1,64 @@
-node_modules
-*.env*
+# --- Secrets & local env (never commit real credentials) ---
 .env
+.env.local
+.env.*.local
+.env.development
+.env.production
+!.env.example
+
+# --- Dependencies ---
+node_modules/
+
+# --- Python ---
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+.eggs/
+dist/
+build/
+pip-wheel-metadata/
+
+# --- Testing & quality ---
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+
+# --- Frontend (Next.js) ---
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+
+# --- Logs & temp ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.tmp/
+.temp/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Editors ---
+.idea/
+*.swp
+*.swo
+*~
+
+# --- Misc ---
+*.local
